@@ -94,6 +94,10 @@ def get_students():
     try:
         students= Student.query.all()
         student_list=[]
+        if not students:
+            return jsonify({
+                'message': 'No students found'
+            }), 404
 
         for student in students:
             student_list.append({
@@ -147,22 +151,17 @@ def update_student(id):
 
         if not data:
             return jsonify({'error': 'No data provided.'}), 400
-
-        # EMAIL UNIQUE CHECK
+        
         if 'email' in data:
             existing_student = Student.query.filter(Student.email == data['email'],Student.id != id).first()
 
             if existing_student:
                 return jsonify({'error': 'Email address already exists.'}), 409
 
-        # AGE VALIDATION
         if 'age' in data:
             if int(data['age']) <= 0:
-                return jsonify({
-                    'error': 'Age must be a positive integer.'
-                }), 400
+                return jsonify({'error': 'Age must be a positive integer.'}), 400
 
-        # UPDATE VALUES
         if 'full_name' in data:
             student.full_name = data['full_name']
 
@@ -179,9 +178,7 @@ def update_student(id):
             student.is_active = data['is_active']
 
         if 'joined_date' in data:
-            student.joined_date = datetime.strptime(
-                data['joined_date'],
-                '%Y-%m-%d').date()
+            student.joined_date = datetime.strptime(data['joined_date'],'%Y-%m-%d').date()
 
         db.session.commit()
 
@@ -210,7 +207,7 @@ def delete_student(id):
         return jsonify({
             'error': 'Internal server error.','details': str(e)}), 500
     
-#---------------- POST courses --------------------##
+#----------------==== POST courses ===-------------------##
 
 @app.route('/api/courses', methods=['POST']) 
 def create_course():
@@ -251,6 +248,10 @@ def create_course():
 def get_courses():
     try:
         courses=Course.query.all()
+
+        if not courses:
+           return jsonify({
+               'message': 'No courses found'}), 404
         course_list=[]
         for course in courses:
             course_list.append({
@@ -265,7 +266,114 @@ def get_courses():
         return jsonify(course_list),200
     except Exception as e:
         return jsonify({'error':'Internal server error','details':str(e)}),500        
-       
+##----------------- Get(one) course -------------------##
+
+@app.route('/api/courses/<int:id>', methods=['GET'])
+def get_course(id):
+
+    try:
+        course = Course.query.get(id)
+
+        if not course:
+            return jsonify({'error': 'Course not found.'}), 404
+
+        return jsonify({
+            'id': course.id,
+            'course_title': course.course_title,
+            'course_fee': course.course_fee,
+            'duration_months': course.duration_months,
+            'description': course.description,
+            'is_available': course.is_available,
+            'created_at': course.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        }), 200
+
+    except Exception as e:
+        return jsonify({'error': 'Internal server error.','details': str(e)}), 500
+##------------------- PUT course -------------------##
+   
+@app.route('/api/courses/<int:id>', methods=['PUT'])
+def update_course(id):
+
+    try:
+        course = Course.query.get(id)
+
+        if not course:
+            return jsonify({
+                'error': 'Course not found.'
+            }), 404
+
+        data = request.get_json()
+
+        if not data:
+            return jsonify({
+                'error': 'No data provided.'
+            }), 400
+        if 'course_title' in data:
+
+            existing_course = Course.query.filter(
+                Course.course_title == data['course_title'],
+                Course.id != id
+            ).first()
+
+            if existing_course:
+                return jsonify({
+                    'error': 'Course title already exists.'
+                }), 409
+
+
+        if 'course_fee' in data:
+            if float(data['course_fee']) <= 0:
+                return jsonify({
+                    'error': 'Course fee must be a positive number.'
+                }), 400
+
+        if 'duration_months' in data:
+            if int(data['duration_months']) <= 0:
+                return jsonify({
+                    'error': 'Duration months must be a positive integer.'
+                }), 400
+
+        if 'course_title' in data:
+            course.course_title = data['course_title']
+
+        if 'course_fee' in data:
+            course.course_fee = data['course_fee']
+
+        if 'duration_months' in data:
+            course.duration_months = data['duration_months']
+
+        if 'description' in data:
+            course.description = data['description']
+
+        if 'is_available' in data:
+            course.is_available = data['is_available']
+
+        db.session.commit()
+
+        return jsonify({'message': 'Course updated successfully.'}), 200
+
+    except Exception as e:
+        return jsonify({'error': 'Internal server error.','details': str(e)}), 500
+
+##----------------- DELETE course -------------------##
+
+@app.route('/api/courses/<int:id>', methods=['DELETE'])
+def delete_course(id):
+
+    try:
+        course = Course.query.get(id)
+
+        if not course:
+            return jsonify({'error': 'Course not found.'}), 404
+
+        db.session.delete(course)
+        db.session.commit()
+
+        return jsonify({'message': 'Course deleted successfully.'}), 200
+
+    except Exception as e:
+        return jsonify({'error': 'Internal server error.','details': str(e)}), 500
+    
 if __name__=='__main__':
     try:
         with app.app_context():
